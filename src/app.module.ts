@@ -6,11 +6,10 @@ import { AuthModule } from './auth/auth.module';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost', 
-      port: 5436, 
-      username: 'nest_user', 
-      password: 'nest_password',
-      database: 'auth_db',
+      host: 'auth-db', 
+      username: 'postgres', 
+      password: '123456',
+      database: 'authdb',
       autoLoadEntities: true,
       synchronize: true, 
     }),
