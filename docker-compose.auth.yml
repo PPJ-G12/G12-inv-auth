@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+
+  # Auth MS
+  auth-ms:
+    depends_on:
+      - auth-db
+    build: ./
+    volumes:
+      - ./src:/usr/src/app/src
+    command: npm run start:dev
+    environment:
+      - PORT=3004
+      - DATABASE_URL=postgresql://postgres:123456@auth-db:5432/authdb?schema=public
+      - NATS_SERVERS=nats://nats-server:4222
+    networks:
+      - app_network
+
+  # Auth DB
+  auth-db:
+    container_name: auth_database
+    image: postgres:latest
+    restart: always
+    volumes:
+      - ./auth-ms/postgres:/var/lib/postgresql/data
+    ports:
+      - 5435:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=authdb
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    external: true
