@@ -13,6 +13,7 @@ services:
       - PORT=3004
       - DATABASE_URL=postgresql://postgres:123456@auth-db:5432/authdb?schema=public
       - NATS_SERVERS=nats://nats-server:4222
+      - JWT_SECRET=OtroStringSeguroIriaAQUI
     networks:
       - app_network
 
