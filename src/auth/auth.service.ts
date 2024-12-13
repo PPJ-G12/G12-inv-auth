@@ -18,6 +18,11 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
+  private failedAttempts = new Map<string, { attempts: number; blockExpires: Date | null }>();
+
+  private readonly MAX_ATTEMPTS = 5;
+  private readonly BLOCK_TIME_MS = 5 * 60 * 1000; // 5 minutos
+
   async register(registerUserDto: RegisterUserDto): Promise<String> {
     const { email, password } = registerUserDto;
 
@@ -38,8 +43,19 @@ export class AuthService {
   async login(loginUserDto: LoginUserDto) {
     const { email, password } = loginUserDto;
 
+    // Verificar si el usuario está bloqueado
+    const userAttempts = this.failedAttempts.get(email) || { attempts: 0, blockExpires: null };
+
+    if (userAttempts.blockExpires && userAttempts.blockExpires > new Date()) {
+      throw new RpcException({
+        status: HttpStatus.FORBIDDEN,
+        message: `Account blocked due to multiple failed attempts. Please try again in 5 minutes.`,
+      });
+    }
+
     const user = await this.userRepository.findOneBy({ email });
     if (!user) {
+      this.trackFailedAttempt(email);
       throw new RpcException({
         status: HttpStatus.UNAUTHORIZED,
         message: 'Invalid credentials',
@@ -48,11 +64,14 @@ export class AuthService {
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      this.trackFailedAttempt(email);
       throw new RpcException({
         status: HttpStatus.UNAUTHORIZED,
         message: 'Invalid credentials',
       });
     }
+
+    this.resetFailedAttempts(email);
 
     const payload: JwtPayload = {
       id: user.id,
@@ -85,5 +104,21 @@ export class AuthService {
         message: 'Invalid token'
       })
     }
+  }
+
+  private trackFailedAttempt(email: string) {
+    const userAttempts = this.failedAttempts.get(email) || { attempts: 0, blockExpires: null };
+
+    userAttempts.attempts += 1;
+
+    if (userAttempts.attempts >= this.MAX_ATTEMPTS) {
+      userAttempts.blockExpires = new Date(Date.now() + this.BLOCK_TIME_MS);
+    }
+
+    this.failedAttempts.set(email, userAttempts);
+  }
+
+  private resetFailedAttempts(email: string) {
+    this.failedAttempts.delete(email);
   }
 }
